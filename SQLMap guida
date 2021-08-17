@@ -1,0 +1,75 @@
+Per chi non lo sapesse, SQLMap è un tool che permette di eseguire analisi ed attacchi basati sulla tecnica SQL Injection.
+SQL Injection è tra le tecniche più note ed utilizzate durante i pentest ed attività di Hacking. 
+La particolarità di tale attacco è quello di poter accedere direttamente dal database di un sito Web, il quale contiene tutte quelle informazioni necessarie ad accedere ad un eventuale pannello di amministrazione o che già di per se contiene tutti i dati di cui abbiamo bisogno. 
+Un’interfaccia di amministrazione, (backoffice, in gergo tecnico) è infatti una semplice rappresentazione grafica di ciò che si trova sul database, ovviamente necessaria per poter operare rapidamente sull’intero sistema.
+Non mi dilungherò sulla tecnica SQL Injection in quanto servirebbero una mezza dozzina di articoli solo per spiegarla, ma con una breve ricerca sul Web (anche YouTube, eventualmente) potrete farvi velocemente un’idea di ciò di cui stiamo parlando.
+
+Ciò che andremmo a fare, quindi, è estrarre tutti i dati contenuti all’interno di un database (DB).
+
+Vediamo insieme quali sono i principali parametri da prendere in considerazione, prima di fare qualche esempio concreto.
+
+    -u indica l’URL da colpire.
+    –data sono i dati che SQLMap invia al database per provare ad autenticarsi.
+    -v indica la verbosità, ossia quanto dovrà essere prolisso l’output (spazia da 0 a 6).
+    –dbs se l’URL è vulnerabile, SQLMap elenca tutti i database presenti.
+    –tables mostra l’elenco delle tabelle presente nel database di riferimento.
+    –-tor –tor-type=SOCKS5 permette di usare SQLMap mediante proxy TOR.
+    –dump permette di leggere una copia dei dati contenuti nella tabella indicata.
+
+Quando un sito è vulnerabile?
+
+Un sito è vulnerabile ad un attacco SQL Injection quando i parametri che vengono passati non sono correttamente verificati, permettono di interrogare il database in qualsiasi modo.
+Un semplice trucco per fare un controllo manuale sta nell’aggiungere un’apice a determinati URL. SQLMap, in ogni caso, vi semplifica la vita, effettuando centinaia di test in pochi istanti.
+In ogni caso, se volete fare qualche tentativo (su un vostro sito, ndr), dovete trovare un URL che passi qualche parametro (per esempio, l’ID utente), come in questo caso:
+
+    https://www.site.com/section.php?id=51
+
+Se lo sviluppatore del codice non ha implementato dei controlli, aggiungendo un’apice, la pagina Web vi mostrerà un errore improvviso e non previsto. Un esempio di ciò che andremo a fare sarà:
+
+    https://www.site.com/section.php?id=51′
+
+Come già detto, vi rimando però allo studio dell’SQL Injection in altri luoghi dove l’argomento è stato trattato ampiamente ed in modo più approfondito di quanto possa fare io.
+Il primo comando che possiamo lanciare con SQLMap, quindi, è quello con cui il tool si occuperà di verificare se un determinato URL è vulnerabile o meno. Per fare ciò, basta lanciare SQLMap passandogli l’URL da verificare, in questo modo:
+
+    sqlmap -u “https://www.site.com/section.php?id=51”
+
+Come effettuare un attacco con SQLMap dall’inizio alla fine
+
+Adesso che abbiamo un’infarinatura generale su SQLMap e SQL Injection, vediamo nella pratica come si compie un attacco di questo tipo dall’inizio alla fine.
+Come prima cosa, dobbiamo verificare se il sito in questione è vulnerabile. Per fare ciò, passiamo l’URL che riteniamo vulnerabile ad SQLMap ed aspettiamo che effettui tutti i test in modo automatico, in questo modo:
+
+    sqlmap -u https://www.sito.com/section.php?id=
+
+Nel momento in cui SQLMap trova delle vulnerabilità, queste saranno indicate. Nel caso in cui sia presente un sistema di protezione WAF, una dicitura rossa “CRITICAL” apparirà sullo schermo. Qui di seguito, lo screenshot nel caso in cui il sito analizzato sia vulnerabile.
+
+Ammettiamo, nel nostro caso, di aver trovato un sito Web vulnerabile. Il prossimo passo fare è quello di elencare i database presenti. Per fare ciò, dobbiamo lanciare il seguente comando:
+
+    sqlmap -u “https://www.sitemap.com/section.php?id=51” –dbs
+
+Come risultato, avremo qualcosa di simile allo screenshot qui sotto.
+
+Adesso che abbiamo trovato i database presenti, dobbiamo elencare le tabelle di quello a cui siamo interessati. Niente di più semplice, il comando da eseguire è il seguente:
+
+    sqlmap.py -u “https://www.site.com/section.php?id=51” –tables -D NOME_DATABASE
+
+A questo punto, arriviamo alla parte più interessante di tutte, quella in cui leggiamo effettivamente i dati contenuti nella tabella che ci interessa.
+Mettiamo caso di aver trovato la tabella “customers”, in cui sono contenuti tutti i clienti del sito Web che siamo riusciti a violare.
+Per leggere i valori, dovremmo eseguire il dump in questo modo:
+
+    sqlmap -u https://www.sito.com/index.php?id=1 -o –dbms MySql -D NOME_DATABASE -T NOME_TABELLA–columns –dump
+
+In questo modo ci vedremo stampati tutti i dati contenuti (motivo per cui le password devono essere memorizzate in modo cifrato all’interno di un database! Se qualcuno riuscisse mai ad ottenere l’accesso, così facendo, la chiave di accesso non sarebbe utilizzabile così com’è), un po’ come nello screenshot qui sotto riportato.
+
+Come usare SQLMap con TOR Proxy
+
+Se volete utilizzare SQLMap garantendovi un anonimato completo, potete eseguire tutte le istruzioni utilizzando TOR Proxy. Ricordatevi che, in questo caso, la velocità dell’intero processo diminuirà drasticamente.
+Il comando da lanciare è il seguente:
+
+    sqlmap –tor –tor-type=SOCKS5 -u “https://www.site.org/view_section.php?id=10”
+
+Ovviamente, prima di fare ciò, è necessario lanciare TOR e verificare che il daemon sia attivo sulla porta 9050.
+Se volessimo aumentare ancora di più il grado di anonimato, potremmo modificare anche l’user-agent con cui i test vengono effettuati. In questo caso, il parametro diventa:
+
+    sqlmap –tor –tor-type=SOCKS5 -u “https://www.site.org/view_section.php?id=10″ –user-agent=”Googlebot (compatible; Googlebot/2.1; +https://www.google.com/bot.html)”
+
+Così facendo, tutte le operazioni eseguite passeranno come se fosse il Googlebot a compierle.
